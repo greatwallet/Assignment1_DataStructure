@@ -254,6 +254,7 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
         Eigen::MatrixXf A_mat = Eigen::MatrixXf::Zero(superpixel.pixel_num * 2, 6);
         Eigen::MatrixXf b_mat = Eigen::MatrixXf::Zero(superpixel.pixel_num * 2, 1);
 
+        vector<float> coefficient(3);
 		{
 			for (int j = 0; j < superpixel.pixel_num; j++)
 			{
@@ -264,7 +265,7 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 					continue;
 
 				// 插值到外接三角形里，得到用三个定点表示的参数
-				vector<float> coefficient;
+
 				tri_interpolation(triangle, origin_point, coefficient);
 
 				// 计算在新视点下的像素坐标	
@@ -363,7 +364,7 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 
 		// 把原来超像素的轮廓用三角形插值投影到新视点下
         vector<Point> novel_contour(superpixel.contour.size());
-        vector<float> coefficient(3);
+
         vector<Point> novel_points;
 		for (int j = 0; j < superpixel.contour.size(); j++)
 		{
