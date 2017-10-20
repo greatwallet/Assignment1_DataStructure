@@ -250,6 +250,10 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 																	//calculate ep
         Eigen::Matrix<float, 6, 6> ep_mat_eigen = Eigen::Matrix<float, 6, 6>::Zero();
         Eigen::Matrix<float, 6, 1 >ep_vec_eigen = Eigen::Matrix<float, 6, 1>::Zero();
+
+        Eigen::MatrixXf A_mat = Eigen::MatrixXf::Zero(superpixel.pixel_num * 2, 6);
+        Eigen::MatrixXf b_mat = Eigen::MatrixXf::Zero(superpixel.pixel_num * 2, 1);
+
 		{
 			for (int j = 0; j < superpixel.pixel_num; j++)
 			{
@@ -266,19 +270,14 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 				// 计算在新视点下的像素坐标	
 				Point destination_point = cal_reprojection(origin_point, point_depth, reproject_mat, reproject_vec);
 
-				// 对每个有深度的点，计算ep_mat
-
-                Eigen::Matrix<float, 2, 6> A = Eigen::Matrix<float, 2, 6>::Zero();
-                for (int i = 0; i < 3; i++) A(0, i) = A(1, i + 3) = coefficient[i % 3];
-                Eigen::Matrix<float, 2, 1> b = Eigen::Matrix<float, 2, 1>::Zero();
-                b(0, 0) = destination_point.x;
-                b(1, 0) = destination_point.y;
-                Eigen::Matrix<float, 6, 6 > ATA = A.transpose()*A;
-                Eigen::Matrix<float, 6, 1 > ATb = A.transpose()*b;
-                ep_mat_eigen += ATA;
-                ep_vec_eigen += ATb;
+                for (int i = 0; i < 3; i++) A_mat(2 * j, i) = A_mat(2 * j + 1, i + 3) = coefficient[i % 3];
+                b_mat(2 * j, 0) = destination_point.x;
+                b_mat(2 * j + 1, 0) = destination_point.y;
 			}
 		}
+
+        ep_mat_eigen = A_mat.transpose()*A_mat;
+        ep_vec_eigen = A_mat.transpose()*b_mat;
 
 		// 计算es_mat，衡量三角形的形变量
         Eigen::Matrix<float, 6, 6> es_mat_eigen = Eigen::Matrix<float, 6, 6>::Zero();
