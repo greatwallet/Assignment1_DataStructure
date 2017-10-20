@@ -248,11 +248,8 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 		minEnclosingTriangle(superpixel.pixels, triangle);			// 计算最小外接三角形
 
 																	//calculate ep
-		Mat ep_mat = Mat::zeros(6, 6, CV_32F); Mat ep_vec = Mat::zeros(6, 1, CV_32F);
         Eigen::Matrix<float, 6, 6> ep_mat_eigen = Eigen::Matrix<float, 6, 6>::Zero();
         Eigen::Matrix<float, 6, 1 >ep_vec_eigen = Eigen::Matrix<float, 6, 1>::Zero();
-		Mat mat(6, 6, CV_32F);
-		Mat vec(6, 1, CV_32F);
 		{
 			for (int j = 0; j < superpixel.pixel_num; j++)
 			{
@@ -284,7 +281,6 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 		}
 
 		// 计算es_mat，衡量三角形的形变量
-		Mat es_mat = Mat::zeros(6, 6, CV_32F);
         Eigen::Matrix<float, 6, 6> es_mat_eigen = Eigen::Matrix<float, 6, 6>::Zero();
 		{
 			int j, k, l;
