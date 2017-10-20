@@ -13,7 +13,7 @@ void tri_interpolation(std::vector<cv::Point2f>& triangle, cv::Point& point, std
 
 cv::Point inv_tri_interpolation(std::vector<cv::Point2f>& triangle, std::vector<float>& coefficient);
 
-float point_distance(cv::Point p1, cv::Point p2);
+float point_distance(cv::Point2f p1, cv::Point2f p2);
 
 void contour_to_set(std::vector<cv::Point>& contour, std::vector<cv::Point>& points_set);
 

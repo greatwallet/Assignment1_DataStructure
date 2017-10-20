@@ -7,8 +7,9 @@
 #include <direct.h>
 #include <thread>
 
-
+#include <string>
 #include <opencv2/imgproc.hpp>
+#include <Eigen/Eigen>
 
 
 using namespace std;
@@ -248,6 +249,8 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 
 																	//calculate ep
 		Mat ep_mat = Mat::zeros(6, 6, CV_32F); Mat ep_vec = Mat::zeros(6, 1, CV_32F);
+        Eigen::Matrix<float, 6, 6> ep_mat_eigen = Eigen::Matrix<float, 6, 6>::Zero();
+        Eigen::Matrix<float, 6, 1 >ep_vec_eigen = Eigen::Matrix<float, 6, 1>::Zero();
 		Mat mat(6, 6, CV_32F);
 		Mat vec(6, 1, CV_32F);
 		{
@@ -268,50 +271,21 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 
 				// 对每个有深度的点，计算ep_mat
 
-				//mat
-				{
-					mat.setTo(0);
-					for (int ii = 0; ii < 3; ii++)
-					{
-						for (int jj = ii; jj < 3; jj++)
-						{
-							mat.at<float>(ii, jj) = 2 * coefficient[ii] * coefficient[jj];
-						}
-					}
-					// 填满对称矩阵
-					for (int ii = 0; ii < 3; ii++)
-					{
-						for (int jj = 0; jj < ii; jj++)
-						{
-							mat.at<float>(ii, jj) = mat.at<float>(jj, ii);
-						}
-					}
-					// 右下角和左上角是一样的
-					for (int ii = 0; ii < 3; ii++)
-					{
-						for (int jj = 0; jj < 3; jj++)
-						{
-							mat.at<float>(ii + 3, jj + 3) = mat.at<float>(ii, jj);
-						}
-					}
-
-				}
-
-				//vec
-				{
-					vec.at<float>(0, 0) = 2 * coefficient[0] * destination_point.x;
-					vec.at<float>(1, 0) = 2 * coefficient[1] * destination_point.x;
-					vec.at<float>(2, 0) = 2 * coefficient[2] * destination_point.x;
-					vec.at<float>(3, 0) = 2 * coefficient[0] * destination_point.y;
-					vec.at<float>(4, 0) = 2 * coefficient[1] * destination_point.y;
-					vec.at<float>(5, 0) = 2 * coefficient[2] * destination_point.y;
-				}
-				ep_mat += mat;
-				ep_vec += vec;
+                Eigen::Matrix<float, 2, 6> A = Eigen::Matrix<float, 2, 6>::Zero();
+                for (int i = 0; i < 3; i++) A(0, i) = A(1, i + 3) = coefficient[i % 3];
+                Eigen::Matrix<float, 2, 1> b = Eigen::Matrix<float, 2, 1>::Zero();
+                b(0, 0) = destination_point.x;
+                b(1, 0) = destination_point.y;
+                Eigen::Matrix<float, 6, 6 > ATA = A.transpose()*A;
+                Eigen::Matrix<float, 6, 1 > ATb = A.transpose()*b;
+                ep_mat_eigen += ATA;
+                ep_vec_eigen += ATb;
 			}
 		}
+
 		// 计算es_mat，衡量三角形的形变量
 		Mat es_mat = Mat::zeros(6, 6, CV_32F);
+        Eigen::Matrix<float, 6, 6> es_mat_eigen = Eigen::Matrix<float, 6, 6>::Zero();
 		{
 			int j, k, l;
 			for (int iter_time = 0; iter_time < 3; iter_time++)
@@ -330,75 +304,60 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 				default:
 					break;
 				}
+
 				Point2f& pj = triangle[j]; float xj = pj.x, yj = pj.y;
 				Point2f& pk = triangle[k]; float xk = pk.x, yk = pk.y;
 				Point2f& pl = triangle[l]; float xl = pl.x, yl = pl.y;
 
-				Mat part_es_mat = Mat::zeros(6, 6, CV_32F);
-				{
-					float a, b, _2a2, _2b2, _2a, _2b, _2a2_2b2;
-					{
-						float dist = point_distance(pj, pk);
-						a = ((xl - xk)*(xj - xk) + (yl - yk)*(yj - yk)) / dist / dist;
-						b = ((xl - xk)*(yj - yk) + (yl - yk)*(xk - xj)) / dist / dist;
-						_2a2 = 2 * pow(a, 2);
-						_2b2 = 2 * pow(b, 2);
-						_2a2_2b2 = _2a2 + _2b2;
-						_2a = a * 2;
-						_2b = b * 2;
-					}
-					part_es_mat.at<float>(j, j) = part_es_mat.at<float>(j + 3, j + 3)
-						= _2a2_2b2;
+                Eigen::Vector2f p1(xk, yk);
+                Eigen::Vector2f p2(xj, yj);
+                Eigen::Vector2f p3(xl, yl);
 
-					part_es_mat.at<float>(k, k) = part_es_mat.at<float>(k + 3, k + 3)
-						= 2 * pow(a - 1, 2) + _2b2;
+                Eigen::Matrix2f R90;
+                R90 << 
+                    0, 1,
+                    -1, 0;
 
-					part_es_mat.at<float>(l, l) = part_es_mat.at<float>(l + 3, l + 3)
-						= 2;
+                Eigen::Matrix<float, 2, 6> A = Eigen::Matrix<float, 2, 6>::Zero();
+                float a = (p3 - p1).dot(p2 - p1) / (p2 - p1).squaredNorm();
+                float b = (p3 - p1).dot(R90*(p2 - p1)) / (p2 - p1).squaredNorm();
 
+                //E=|p3-p1-a(p2-p1)-bR90(p2-p1)|^2
+                Eigen::Matrix2f Aj, Ak, Al; 
+                Ak <<
+                    (-1 + a), b,
+                    -b, (-1 + a);
+                Aj <<
+                    -a, -b,
+                    b, -a;
+                Al << 
+                    1, 0,
+                    0, 1;
+                A.col(j) = Aj.col(0);
+                A.col(j + 3) = Aj.col(1);
+                A.col(k) = Ak.col(0);
+                A.col(k + 3) = Ak.col(1);
+                A.col(l) = Al.col(0);
+                A.col(l + 3) = Al.col(1);
 
-					part_es_mat.at<float>(j, k) = part_es_mat.at<float>(k, j)
-						= part_es_mat.at<float>(j + 3, k + 3) = part_es_mat.at<float>(k + 3, j + 3)
-						= -_2b2 - 2 * a*(a - 1);
-
-					part_es_mat.at<float>(j, l) = part_es_mat.at<float>(l, j)
-						= part_es_mat.at<float>(j + 3, l + 3) = part_es_mat.at<float>(l + 3, j + 3)
-						= -_2a;
-
-					part_es_mat.at<float>(k, l) = part_es_mat.at<float>(l, k)
-						= part_es_mat.at<float>(k + 3, l + 3) = part_es_mat.at<float>(l + 3, k + 3)
-						= _2a - 2;
-
-					part_es_mat.at<float>(j, k + 3) = part_es_mat.at<float>(k + 3, j)
-						= part_es_mat.at<float>(k, l + 3) = part_es_mat.at<float>(l + 3, k)
-						= part_es_mat.at<float>(l, j + 3) = part_es_mat.at<float>(j + 3, l)
-						= -_2b;
-
-					part_es_mat.at<float>(j, l + 3) = part_es_mat.at<float>(l + 3, j)
-						= part_es_mat.at<float>(k, j + 3) = part_es_mat.at<float>(j + 3, k)
-						= part_es_mat.at<float>(l, k + 3) = part_es_mat.at<float>(k + 3, l)
-						= _2b;
-				}
-				es_mat += part_es_mat;
+                Eigen::Matrix<float, 6, 6 >ATA = A.transpose()*A;
+                es_mat_eigen += ATA;
 			}
 		}
 
 		// 求逆矩阵，计算在新视点下的外接三角形
 		float es_weight = 1;
-		Mat temp_mat = ep_mat + es_mat*es_weight;
-		if (abs(determinant(temp_mat)) < 1e-6)
-		{
-			continue;				// 如果深度点不够，会使得矩阵不可逆，则跳过
-		}
-		Mat inv_mat = temp_mat.inv(DECOMP_CHOLESKY);
-		Mat result = inv_mat * ep_vec;
+
+        Eigen::Matrix<float, 6, 6> temp_mat_eigen = ep_mat_eigen + es_mat_eigen*es_weight;
+        if (temp_mat_eigen.determinant() < 1e-6) continue;
+        Eigen::LDLT<Eigen::MatrixXf> ldlt(temp_mat_eigen);
+        Eigen::VectorXf x = ldlt.solve(ep_vec_eigen);
 
 		vector<Point2f> novel_triangle;
 		novel_triangle.resize(3);
-		novel_triangle[0] = Point2f(result.at<float>(0, 0), result.at<float>(3, 0));
-		novel_triangle[1] = Point2f(result.at<float>(1, 0), result.at<float>(4, 0));
-		novel_triangle[2] = Point2f(result.at<float>(2, 0), result.at<float>(5, 0));
-
+		novel_triangle[0] = Point2f(x(0), x(3));
+		novel_triangle[1] = Point2f(x(1), x(4));
+		novel_triangle[2] = Point2f(x(2), x(5));
 
 		//如果面积之比大于4，则跳过
 		float origin_area = calc_triangle_area(triangle);

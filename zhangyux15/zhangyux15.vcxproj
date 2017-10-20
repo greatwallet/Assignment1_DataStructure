@@ -73,7 +73,7 @@
     <LibraryPath>.\\program_lib\\Opencv33WithContrib\\lib\\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>../packages/opengl/include;../packages/Opencv33WithContrib/include;$(IncludePath)</IncludePath>
+    <IncludePath>../packages/opengl/include;../packages/Opencv33WithContrib/include;$(EIGEN_INCLUDE);$(IncludePath)</IncludePath>
     <LibraryPath>../packages/Opencv33WithContrib/lib/Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
