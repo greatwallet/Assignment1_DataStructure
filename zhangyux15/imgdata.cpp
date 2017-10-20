@@ -363,13 +363,14 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 
 
 		// 把原来超像素的轮廓用三角形插值投影到新视点下
-		vector<Point> novel_contour, novel_points;
+        vector<Point> novel_contour(superpixel.contour.size());
+        vector<float> coefficient(3);
+        vector<Point> novel_points;
 		for (int j = 0; j < superpixel.contour.size(); j++)
 		{
 			Point& origin_point = superpixel.contour[j];
-			vector<float> coefficient;
 			tri_interpolation(triangle, origin_point, coefficient);
-			novel_contour.push_back(inv_tri_interpolation(novel_triangle, coefficient));
+            novel_contour[j] = (inv_tri_interpolation(novel_triangle, coefficient));
 		}
 
 		// 用投影后的轮廓得到投影后的超像素区域
