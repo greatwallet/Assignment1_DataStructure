@@ -105,7 +105,7 @@ void watch_result(vector<ImgData>& imgdata_vec, int interpolation_density)	//int
 int main()
 {
 	vector<ImgData> imgdata_vec;
-	bool with_file = false;
+	bool with_file = true;
 	bool run_mve = false;
 	init(imgdata_vec, run_mve, with_file);
 	watch_result(imgdata_vec, 5);
