@@ -10,7 +10,6 @@
 #include <string>
 #include <opencv2/imgproc.hpp>
 #include <Eigen/Eigen>
-#include "my_tool.h"
 #include <cmath>
 
 using namespace std;
@@ -134,35 +133,7 @@ void SuperPixel::create(cv::Mat &origin_img)
 		v_bgr.at<cv::Vec3b>(i)[0] = v[0];
 		v_bgr.at<cv::Vec3b>(i)[1] = v[1];
 		v_bgr.at<cv::Vec3b>(i)[2] = v[2];
-		{
-			//v_bgr = v;
-			/*unsigned char rgb[3];
-			rgb[0] = unsigned char(v[0]);
-			rgb[1] = unsigned char(v[1]);
-			rgb[2] = unsigned char(v[2]);
-			std::cout << int(rgb[0]) << " " << int(rgb[1]) << " " << int(rgb[2]) << endl ;
-			double lab[3];*/
-			/*cv::cvtColor(v_bgr, v_lab, CV_RGB2Lab);
 
-			cout << int(v_bgr.at<unsigned char>(0)) << " " << int(v_bgr.at<unsigned char>(1)) << " " << int(v_bgr.at<unsigned char>(2)) << " " << endl;
-			cout << int(v_lab.at<unsigned char>(0))*100.0/255.0 << " " << int(v_lab.at<char>(1))+128 << " " << int(v_lab.at<char>(2))+128 << " " << endl << endl;*/
-
-
-			//获得该像素点坐标
-
-
-			/*RGB2Lab(rgb, lab);*/
-			//
-			/*std::cout << lab[0] <<" "<< lab[1] <<" " << lab[2] << endl << endl;*/
-			//将b g r信息赋值
-			////此处错误！应用指针赋值
-			//v_bgr.at<cv::Vec3b>(j)[0] = v[0]; j++;
-			///*std::cout << v_bgr.at<int>(j - 1)<<" " ;*/
-			//v_bgr.at<int>(j) = v[1]; j++;
-			///*std::cout << v_bgr.at<int>(j - 1)<<" " ;*/
-			//v_bgr.at<int>(j) = v[2]; j++;
-			///*std::cout << v_bgr.at<int>(j - 1) << std::endl;*/
-		}
 
 		float depth = pixels_depth[i];
 		if (!is_zero(depth))
@@ -175,26 +146,7 @@ void SuperPixel::create(cv::Mat &origin_img)
 	}
 
 	cv::cvtColor(v_bgr, v_lab, CV_RGB2Lab);
-	//RGB2Lab()
-	//cv::Mat v_lab(pixel_num * 3, 1, CV_8UC3);
-	//hist.resize(pixel_num * 3);
-	//cv::cvtColor(v_bgr, v_lab, CV_BGR2Lab, 3);
 
-	{/*std::ofstream fout("bgr_lab.txt");
-	fout << "bgr" << std::endl;
-	for (int i = 0; i < pixel_num; i++)
-	{
-		fout << int(v_bgr.at<cv::Vec3b>(i)[0]) << " " << int(v_bgr.at<cv::Vec3b>(i)[1]) << " " << int(v_bgr.at<cv::Vec3b>(i)[2]) << std::endl;
-	}
-	fout << std::endl;
-	fout << "lab" << std::endl;
-	for (int i = 0; i < pixel_num; i++)
-	{
-		fout << int(v_lab.at<cv::Vec3b>(i)[0])*100.0/255.0 << " " << int(v_lab.at<cv::Vec3b>(i)[1])-128 << " " << int(v_lab.at<cv::Vec3b>(i)[2])-128 << std::endl;
-	}
-
-
-	fout.close();*/}
 	//cv::Mat hist;
 	cv::Mat Lab_planes[3];
 	//将三个通道分割开
@@ -577,50 +529,6 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 	cout << "--thread--" << thread_rank << "--end using time:..." << (end - start) << "ms" << endl;
 }
 
-//产生lab直方图
-cv::Mat labHist(const cv::Mat &src, int lbins, int abins, int bbins)
-{
-	//Mat dst(src);
-	//颜色空间的转换 BGR2Lab  
-	//cvtColor(src,lab,CV_BGR2Lab);  
-
-	//L,a,b三个通道分别为 4,14,14bins  
-	int histSize[] = { lbins , abins , bbins };
-
-	//L的取值范围 0-255  
-	float lranges[] = { 0,256 };
-	//a的取值范围   
-	float aranges[] = { 0,256 };
-	//b的取值范围  
-	float branges[] = { 0,256 };
-	const float* ranges[] = { lranges ,aranges , branges };
-
-	Mat hist3D, hist3dNormal;
-	Mat dst = Mat(lbins*abins*bbins, 1, CV_8UC1);
-
-	const int channels[] = { 0,1,2 };
-	calcHist(&src, 1, channels, Mat(), hist3D, 3, histSize, ranges, true, false);//hist3D是32F  
-																				 //归一化,64F  
-	normalize(hist3D, hist3dNormal, 1, 0, CV_L1, CV_8U);
-
-	//第二种方法取得三维直方图中的值  
-	//double* p = (double*)hist3D.data;  
-	int row = 0;
-	for (int l = 0; l < lbins; l++)
-	{
-		for (int a = 0; a < abins; a++)
-		{
-			for (int b = 0; b < bbins; b++)
-			{
-				dst.at<double>(row, 0) = *((double*)(hist3dNormal.data + l*hist3dNormal.step[0] + a*hist3dNormal.step[1] + b*hist3dNormal.step[2]));
-				//hist.at<double>(row,0) = *(p+row);  
-				row++;
-			}
-		}
-	}
-	return dst;
-}
-
 void mix_pic(vector<ImgData>& imgdata_vec, Camera& now_cam, vector<int>& img_id, Mat& output_img)
 {
 	cout << "--begin generate pic..." << endl;
@@ -664,8 +572,6 @@ void mix_pic(vector<ImgData>& imgdata_vec, Camera& now_cam, vector<int>& img_id,
 
 }
 
-
-
 double chiSquareDist(const cv::Mat &hist1, const cv::Mat & hist2)
 {
 	int rows = hist1.rows;
@@ -691,195 +597,152 @@ double sp_Pair::calcChiSquare()
 
 void ImgData::depth_synthesis()
 {
-	ofstream fout("commands.txt");
-	//sim_graph.resize(sp_num);
-	Near_sp.resize(sp_num);
-
-	//邻接表的纵向长度为sp_num
-	adjacency_list.resize(sp_num);
+	ofstream fout("commands");
+	sim_graph.resize(sp_num);
 	int depthless_num = 0;
-	//fout << "start Graphing!" << std::endl;
-	int index_Near_sp = 0;
 	for (int i = 0; i<sp_num; i++)
-	{
+	{	
 		//sim_graph[i].resize(sp_num);
-		//此处必须用引用，因为要作为左值使用
 		SuperPixel &pixel_now = data[i];
-		if (!data[i].have_depth())depthless_num++;
-		//↓可删除
-		if (!data[i].have_depth()) sp_no_depth.push_back(data[i]);
-		//↑可删除
-
-		// 构建一个小顶堆的向量；可以加到SuperPixel类里当成员
+		if (!pixel_now.have_depth())depthless_num++;
 		std::priority_queue<sp_Pair, std::vector<sp_Pair>, pair_cmp> current_nbr;
-		
-		/*vector<priority_queue<sp_Pair, vector<sp_Pair>, pair_cmp>> Near_sp;
-		Near_sp.resize(sp_num);*/
+
 		//建图
-		
+		fout << "start Graphing!" << std::endl;
 		for (int j = 0, k = 0;j<sp_num; j++)
 		{
-			if (i == j)continue;
 			SuperPixel &pixel_neigh = data[j];
-			//若是邻居
-			if (pixel_now.neighbor(data[j], j, sp_label))
+			if (pixel_now.neighbor(pixel_neigh, j, sp_label))
 			{
 				//fout << "neighbor found!" << std::endl;
-				double similarity = chiSquareDist(data[i].hist, data[j].hist);
-				//邻接表存储
-				adjacency_list[i].push_back(adjacency_list_node(j, similarity));
-				//sim_graph[i][j] = similarity;
-
+				double similarity = chiSquareDist(pixel_now.hist, pixel_neigh.hist);
+				sp_nbr_similarity nbr_now(j,similarity);
+				sim_graph[i].push_back(nbr_now);
 				//将邻居存储至SP类中
 				//pixel_now.neighbors_ranks.push_back(j);
 			}
-			/*else
+			/*
+			else
 				sim_graph[i][j] = DBL_MAX;*/
 
 			//建立该元素的最小的40个
-			if ((!data[i].have_depth())&&(data[j].have_depth()))
+			if ((!pixel_now.have_depth())&&(pixel_neigh.have_depth()))
 			{
-				//fout << "depthless point neighbor found!" << std::endl;
-				sp_Pair pair(data[i], data[j]);
+				sp_Pair pair(pixel_now, pixel_neigh);
 				current_nbr.push(pair);
 				if (current_nbr.size() > 40) current_nbr.pop();
-				//fout << " data[i].have_depth()= " << data[i].have_depth() << "  data[j].have_depth()= " << data[j].have_depth() << std::endl;
 				//把它压进去；
 				//弹出小顶堆的第一个；
 			}
 		}
-		if (!data[i].have_depth())
+		if (!pixel_now.have_depth())
 		{
-			Near_sp[index_Near_sp++] = (current_nbr);
-			/*fout << "one heap set up!" << std::endl;
-			fout << " pixel_now.neighbors_ranks.size() " << pixel_now.neighbors_ranks.size() << std::endl;
-			fout << " get_superpixel(i).neighbors_ranks.size() = " << get_superpixel(i).neighbors_ranks.size() << std::endl;*/
+			Near_sp.push_back(current_nbr);
+			fout << "one heap set up!" << std::endl;
+			fout << " superpixel(i).neighbors_ranks = " << sim_graph[i].size() << std::endl;
 		}
 		//如果它是无深度超像素，那么把大顶堆转化成向量，即为最相似的40个超像素
 		
 	}
-	//fout << "sp_num = " << sp_num << std::endl;
-	//fout << "depthless_num = " << depthless_num << std::endl;
-	//fout << "start DIJKSTRA ing!" << std::endl;
+	fout << "sp_num = " << sp_num << std::endl;
+	fout << "depthless_num = " << depthless_num << std::endl;
+	fout << "start DIJKSTRA ing!" << std::endl;
 	//此处应该进行Dijkstra
-	Near_sp.shrink_to_fit();
-	
-	for (int i = 0; i < Near_sp.size(); i++)
+
+	for (int i = 0; i < Near_sp.size()&&i<3; i++)
 	{
-		int count = 0;
-		//fout << "No " <<i<<" depthless point start dijkstra-ing "<< std::endl;
+		fout << "No " <<i<<" depthless point start dijkstra-ing "<< std::endl;
 		//current_nbr指40个相似点
 		std::priority_queue<sp_Pair, std::vector<sp_Pair>, pair_cmp> &current_nbr = Near_sp[i];
-		//nbr_vec指40个相似点的秩
-		std::vector<int> nbr_vec;
+		//nbr_vec指40个相似点
+		std::vector<SuperPixel> nbr_vec;
 		nbr_vec.resize(40);
 		//必须转化为引用
-		//sp_Pair &current_pair = const_cast<sp_Pair &>(Near_sp[i].top());
-		SuperPixel &current_sp = const_cast<SuperPixel &>(Near_sp[i].top().sp_src);
-		SuperPixel source = Near_sp[i].top().sp_src;
+		sp_Pair &current_pair = const_cast<sp_Pair &>(Near_sp[i].top());
+		SuperPixel &current_sp = current_pair.sp_src;
 		//将优先级队列中N[S]转存到vector中
-		int index = 0;
-		while (!Near_sp[i].empty())
+		while (!current_nbr.empty())
 		{
-			sp_Pair p = Near_sp[i].top(); nbr_vec[index++] = get_sp_rank(p.sp_dst);
-			/*nbr_vec.push_back(get_sp_rank(p.sp_dst));*/ //fout << "nbr_vec [i]" << get_sp_rank(p.sp_dst) << std::endl;
-			Near_sp[i].pop();
+			sp_Pair p = current_nbr.top();
+			nbr_vec.push_back(p.sp_dst);
+			current_nbr.pop();
 		}
-		//fout << " queue to nbr_vec transformed " << std::endl;
+		fout << " queue to nbr_vec transformed " << std::endl;
 		//重置,初始化
 		reset();
-		current_sp.discovered = false;
+		current_sp.discovered = true;
 		current_sp.priority = 0;
 		//优先级队列
 		std::priority_queue<SuperPixel, std::vector<SuperPixel>, sp_cmp> q;
-		//fout << "current_sp_rank = " << get_sp_rank(current_sp) << std::endl;
-		//fout << " start traversing " << std::endl;
-		int cur_rank = get_sp_rank(current_sp);
-		q.push(current_sp);
+		int count = 1;
+		fout << " start traversing " << std::endl;
 		while (true)
 		{
-			if (q.empty())
+			//先遍历所有的邻居
+			fout << " current_sp.neighbors_ranks.size() = " << sim_graph[get_sp_rank(current_sp)].size() << std::endl;
+			for (int j = 0; j < sim_graph[get_sp_rank(current_sp)].size(); j++)
 			{
-				//fout << "Queue empty!" << std::endl;
-				break;
-			}
-			current_sp = q.top(); q.pop();
-			if (current_sp.discovered)continue;
-			get_superpixel(get_sp_rank(current_sp)).discovered = true;
-			//fout << "current_sp_rank = " << get_sp_rank(current_sp) << std::endl;
-			//fout << "current priority = " << current_sp.priority << std::endl;
-			//检查当前节点是否为40个节点之一
-			for (int i = 0; i < nbr_vec.size(); i++)
-			{
-				//fout << "nbr_vec: " << nbr_vec[i] << " center: " << get_superpixel(nbr_vec[i]).center;
-				//fout << "current: " << cur_rank << " center: " << current_sp.center;
-				if (get_superpixel(nbr_vec[i]).center == current_sp.center)
-				{
-					count++;
-				}
-			}
-			std::cout << " count =  " << count << std::endl;
-			//fout << " count =  " << count << std::endl;
-			//直至3个顶点被加入
-			if (count >= 3)break;
-			
-			////更新优先级,先遍历所有的邻居
-			//fout << " current_sp.neighbors_ranks.size() = " << adjacency_list[get_sp_rank(current_sp)].size() << std::endl;
-			for (int j = 0,cur_rank = get_sp_rank(current_sp); j < adjacency_list[get_sp_rank(current_sp)].size(); j++)
-			{
-				//邻居点的秩
-				int nbr_rank = adjacency_list[cur_rank][j].sp_rank; //fout << "j = " << j << " nbr_bank = " << nbr_rank << " ";
-				//fout << "discovered? " << get_superpixel(nbr_rank).discovered << std::endl;
+				fout << "discovered? " << get_superpixel(sim_graph[get_sp_rank(current_sp)][j].Rank_nbr).discovered << endl;
 				//更新优先级
-				if (!get_superpixel(nbr_rank).discovered)
+				if (!get_superpixel(sim_graph[get_sp_rank(current_sp)][j].Rank_nbr).discovered)
 				{
-					
-					//fout << " undiscovered neighbor found! " << std::endl;
-					//SuperPixel &nbr = get_superpixel(adjacency_list[get_sp_rank(current_sp)][j].sp_rank);
-					//fout << "nbr.priority=" << get_superpixel(nbr_rank).priority << " current_sp.priority = " << current_sp.priority << " edgeCost = " << adjacency_list[cur_rank][j].edgeCost << std::endl;
-					//若邻居点的优先级					 大于 现结点的优先级	  +	两点之间的边权重
-					if ((get_superpixel(nbr_rank).priority > (current_sp.priority + adjacency_list[cur_rank][j].edgeCost)))
+					get_superpixel(sim_graph[get_sp_rank(current_sp)][j].Rank_nbr).discovered = false;
+					fout << " undiscovered neighbor found! " << std::endl;
+					SuperPixel &nbr = get_superpixel(sim_graph[get_sp_rank(current_sp)][j].Rank_nbr);
+					get_sp_rank(current_sp);
+					fout << "nbr.priority=" << nbr.priority << " current_sp.priority = " << current_sp.priority << " edgeCost = " << sim_graph[get_sp_rank(current_sp)][j].nbr_similarity << std::endl;
+					if (nbr.priority > (current_sp.priority + sim_graph[get_sp_rank(current_sp)][j].nbr_similarity)) 
 					{
-						//fout << " priority updated! " << std::endl;
-						get_superpixel(nbr_rank).priority = current_sp.priority + adjacency_list[cur_rank][j].edgeCost;
-						//fout << "UPDATED::nbr.priority=" << get_superpixel(nbr_rank).priority << std::endl;
-						//将更新后的邻居塞入队列中
-						q.push(get_superpixel(nbr_rank));
+						fout << " priority updated! " << std::endl;
+						get_superpixel(sim_graph[get_sp_rank(current_sp)][j].Rank_nbr).priority = current_sp.priority + sim_graph[get_sp_rank(current_sp)][j].nbr_similarity;
+						q.push(get_superpixel(sim_graph[get_sp_rank(current_sp)][j].Rank_nbr));
 					}
 				}
 			}
-			//fout << " ALL priority updated! " << std::endl;
-			//fout << "q.size() = " << q.size() << std::endl;
+			fout << " ALL priority updated! " << std::endl;
+			current_sp = q.top(); q.pop();
+			for (int i = 0; i < nbr_vec.size(); i++)
+				if (nbr_vec[i].center == current_sp.center)count++;
+			fout << " count =  " << count << std::endl;
+			//直至40个顶点被加入
+			if (count >= 3)break;
 		}
 		//找到最小的1个向量，并进行插值
-		double shortest = DBL_MAX / 1024; int shortest_rank = 0;
-		for (int j = 0; j < 40; j++)
+		double shortest = DBL_MAX; int shortest_rank = 0;
+		for (int i = 0; i < 40; i++)
 		{
 			//若该找到的点不为自己
-			if (get_superpixel(nbr_vec[j]).center == source.center)continue;
-			if ((shortest > get_superpixel(nbr_vec[j]).priority) && (get_superpixel(nbr_vec[j]).priority > 1e-6) && get_superpixel(nbr_vec[j]).have_depth())
+			if (nbr_vec[i].center == current_sp.center)continue;
+			fout << "nbr_vec[i].have_depth()" << nbr_vec[i].have_depth() << std::endl;
+			fout << "nbr_vec[i].priority" << nbr_vec[i].priority << std::endl;
+			if ((shortest > nbr_vec[i].priority) && (nbr_vec[i].priority > 1e-6) && nbr_vec[i].have_depth())
 			{
-				shortest = get_superpixel(nbr_vec[j]).priority;
-				shortest_rank = j;
-				//fout << " shortest updated !" << std::endl;
-				//fout << " shortest =  " << shortest << std::endl;
+				shortest = nbr_vec[i].priority;
+				shortest_rank = i;
+				fout << " shortest updated !" << std::endl;
+				fout << " shortest =  " << shortest << std::endl;
 			}
 		}
 		//为深度赋值
-		//fout << " start  assigning depth!" << std::endl;
-		for (int k = 0; k < source.pixel_num; k++)
+		fout << " start  assigning depth!" << std::endl;
+		for (int i = 0; i < current_sp.pixel_num; i++)
 		{
-			get_pixel_depth(source.pixels[k]) = get_superpixel(nbr_vec[shortest_rank]).depth_average;
-			//fout << "pixel_num" << k << std::endl;
+			get_pixel_depth(current_sp.pixels[i]) = nbr_vec[shortest_rank].depth_average;
+			fout << "pixel_num" << i << std::endl;
 		}
+
+
+
+
+
 	}
-	//fout << "UPDATING!!!!!!!!!" << endl;
-	//fout << "UPDATING!!!!!!!!!" << endl;
+	fout << "UPDATING!!!!!!!!!" << endl;
+	fout << "UPDATING!!!!!!!!!" << endl;
 	fout << "UPDATING!!!!!!!!!" << endl;
 
 	save_depth_image();
 
-	//fout << "new depth_image Saved!" << endl;
+	fout << "new depth_image Saved!" << endl;
 
 	fout.close();
 	//以上构建了相邻图和无深度点的最相似超像素

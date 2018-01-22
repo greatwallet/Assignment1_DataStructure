@@ -1,4 +1,6 @@
 #pragma once
+#ifndef CAMERA_H
+#define CAMERA_H
 
 #include <opencv2/opencv.hpp>
 #include <string>
@@ -34,3 +36,6 @@ public:
 
 //计算二次投影
 cv::Point cal_reprojection(cv::Point origin_point, float depth, cv::Mat& mat, cv::Mat& vec);
+
+
+#endif // !CAMERA_H

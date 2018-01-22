@@ -122,7 +122,26 @@ int main()
 	bool run_mve = false;	//true:		重新做mve重建
 	init(imgdata_vec, run_mve, with_file);
 	//此处应做depth synthesis
+	imgdata_vec[0].depth_synthesis();
+	ofstream fout("adjacency list.txt");
 
+	for (int i = 0; i < imgdata_vec[0].adjacency_list.size(); i++)
+	{
+		fout << "Rank " << i << " node:" << std::endl;
+		for (int j = 0; j < imgdata_vec[0].adjacency_list[i].size(); j++)
+		{
+			fout << imgdata_vec[0].adjacency_list[i][j].sp_rank << " " ;	
+		}
+		std::cout << endl;
+		for (int j = 0; j < imgdata_vec[0].adjacency_list[i].size(); j++)
+		{
+			fout << imgdata_vec[0].adjacency_list[i][j].edgeCost << " " ;
+		}
+		std::cout << endl;
+	}
+	
+
+	fout.close();
 	watch_result(imgdata_vec, 5);	//主要函数
 
 

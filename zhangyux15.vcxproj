@@ -126,6 +126,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="depth_synthesisi.h" />
     <ClInclude Include="global_var.h" />
     <ClInclude Include="imgdata.h" />
     <ClInclude Include="init.h" />

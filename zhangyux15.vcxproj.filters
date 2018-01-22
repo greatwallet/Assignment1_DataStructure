@@ -33,15 +33,15 @@
     <ClInclude Include="my_tool.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="depth_synthesisi.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="my_math_tool.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="imgdata.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="camera.cpp">
@@ -51,6 +51,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="my_tool.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="imgdata.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,12 +1,39 @@
 #pragma once
-#include <opencv2/opencv.hpp>
-#include <string>
+#ifndef IMG_DATA_H
+#define IMG_DATA_H
+
+
 
 #include "camera.h"
+#include <functional>
+#include <queue>
+#include <vector>
 
-
+//邻接矩阵存放邻域秩和相似度
+struct sp_nbr_similarity
+{
+	int Rank_nbr;
+	double nbr_similarity;
+	sp_nbr_similarity(const int &rank, const double &similarity) :Rank_nbr(rank), nbr_similarity(similarity) {}
+};
 cv::Mat labHist(const cv::Mat& src, int lbins = 20, int abins = 20, int bbins = 20);
 
+//邻接表节点类
+struct adjacency_list_node
+{
+	//超像素在imgdata中的秩
+	int sp_rank;
+	//超像素的边的值
+	float edgeCost;
+
+	adjacency_list_node() {};
+	adjacency_list_node(int sp_rank, float edgeCost)
+		:sp_rank(sp_rank),edgeCost(edgeCost){};
+};
+
+
+class sp_Pair;
+struct pair_cmp;
 //超像素类
 class SuperPixel
 {
@@ -23,12 +50,22 @@ public:
 	//直方图
 	cv::Mat hist;
 
+	//std::priority_queue <sp_Pair, std::vector<sp_Pair>, pair_cmp> Near_sp;
+
 	int pixel_num;
 	int depth_num;
 	float depth_average;
 	float depth_max;
 	float depth_min;
+	//储存该超像素邻居的秩
+	std::vector<int> neighbors_ranks;
+
+	//优先级
+	double priority;
+	//是否被发现
+	bool discovered;
 	SuperPixel() 
+		:priority(DBL_MAX),discovered(true)
 	{
 		hist = cv::Mat();
 	}
@@ -43,10 +80,23 @@ public:
 	void create(cv::Mat &origin_img);
 	//判定当前超像素点是否有深度信息
 	bool have_depth();
+	//neighbor or not
+	bool neighbor(const SuperPixel& neigh, int rank_neigh, cv::Mat sp_label);
 
+	//计算与邻居的折线距离
+	bool posneigh(cv::Point cen_neigh);
+	bool posneigh(const SuperPixel &neigh);
 private:
 };
 
+struct sp_cmp
+{
+	bool operator() (const SuperPixel &left, const SuperPixel &right)
+	{
+		return left.priority > right.priority;	//最小值优先
+	}
+
+};
 
 //图片信息类
 class ImgData
@@ -68,8 +118,16 @@ public:
 	cv::Mat sp_contour;
 	//超像素点的数目
 	int sp_num;
+
+	int get_sp_rank(const SuperPixel &sp);
+	//无深度顶点
+	std::vector <SuperPixel> sp_no_depth;
+
 	std::vector<SuperPixel> data;
 	std::string path_output;
+
+	std::vector<std::priority_queue<sp_Pair, std::vector<sp_Pair>, pair_cmp>> Near_sp;
+
 	//函数
 	ImgData(int _id, Camera& _cam, cv::Mat& _origin_img, cv::Mat& _depth_mat, cv::Mat& _sp_label, cv::Mat& _sp_contour, int _sp_num);
 	ImgData() {}
@@ -79,6 +137,14 @@ public:
 	SuperPixel& get_superpixel(int i);
 	//获取某点的深度信息
 	float& get_pixel_depth(cv::Point& point);
+	//第一步
+	void depth_synthesis();
+
+	//邻接矩阵
+	std::vector<std::vector<sp_nbr_similarity>> sim_graph;
+
+	//邻接表
+	std::vector<std::vector<adjacency_list_node>> adjacency_list;
 
 private:
 	//创建相似度路径（？）
@@ -93,6 +159,48 @@ private:
 	void save_depth_image();
 	//保存超像素点图片
 	void save_sp_image();
+	//遍历重置
+	void reset();
 };
 
 void mix_pic(std::vector<ImgData>& imgdata_vec, Camera& now_cam, std::vector<int>& img_id, cv::Mat& output_img);
+
+class sp_Pair
+{
+public:
+	SuperPixel sp_src;
+	SuperPixel sp_dst;
+	double similarity;
+	sp_Pair()
+		:similarity(-1)
+	{};
+	sp_Pair(const SuperPixel &src, const SuperPixel &dst)
+		:sp_src(src),sp_dst(dst)
+	{
+		similarity = calcChiSquare();
+	}
+	double calcChiSquare();
+};
+
+struct pair_cmp
+{
+	bool operator() (sp_Pair &left, sp_Pair &right)
+	{
+		if (left.similarity < 0)left.similarity = left.calcChiSquare();
+		if (right.similarity < 0)right.similarity = right.calcChiSquare();
+
+		return left.similarity > right.similarity;
+	}
+
+};
+
+
+struct sp_nbr_path
+{
+	SuperPixel sp_nbr;
+	double priority;
+};
+
+
+
+#endif // !1
