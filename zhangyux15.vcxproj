@@ -132,6 +132,7 @@
     <ClInclude Include="init.h" />
     <ClInclude Include="my_math_tool.h" />
     <ClInclude Include="my_tool.h" />
+    <ClInclude Include="sky.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="imgdata.cpp" />

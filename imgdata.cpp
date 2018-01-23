@@ -16,6 +16,8 @@
 using namespace std;
 using namespace cv;
 
+int inX[4] = { 0,0,1,-1 };
+int inY[4] = { 1,-1,0,0 };
 
 //获取卡方距离
 double SuperPixel::chiSquareDist(const SuperPixel & right)
@@ -102,7 +104,7 @@ ImgData::ImgData(int _id, Camera& _cam, Mat& _origin_img, Mat& _depth_mat, Mat& 
 	save_sp_image();
 }
 
-//超像素产生函数
+//超像素产生函数(产生hist)
 void SuperPixel::create(cv::Mat &origin_img)
 {
 	pixel_num = pixels.size();
@@ -174,7 +176,7 @@ void SuperPixel::create(cv::Mat &origin_img)
 		}
 	}
 
-	cv::cvtColor(v_bgr, v_lab, CV_RGB2Lab);
+	cv::cvtColor(v_bgr, v_lab, CV_BGR2Lab);
 	//RGB2Lab()
 	//cv::Mat v_lab(pixel_num * 3, 1, CV_8UC3);
 	//hist.resize(pixel_num * 3);
@@ -247,6 +249,50 @@ void SuperPixel::create(cv::Mat &origin_img)
 	contour = temp_contour[0];
 	
 }
+//超像素产生函数(不产生hist)
+void SuperPixel::create()
+{
+	pixel_num = pixels.size();
+	// 计算中心点和平均深度
+	Point point_sum(0, 0);
+	float depth_sum = 0;
+	depth_min = FLT_MAX;
+	depth_max = 0;
+	depth_num = 0;
+
+	for (int i = 0, j = 0; i < pixel_num; i++)
+	{
+		point_sum += pixels[i];
+		float depth = pixels_depth[i];
+		if (!is_zero(depth))
+		{
+			depth_num++;
+			depth_sum += depth;
+			depth_min = depth < depth_min ? depth : depth_min;
+			depth_max = depth > depth_max ? depth : depth_max;
+		}
+	}
+
+
+	center = point_sum / pixel_num;
+	if (depth_num == 0)
+		depth_average = 0;
+	else
+		depth_average = depth_sum / depth_num;
+
+	//生成mask
+	Mat mask = Mat::zeros(HEIGHT, WIDTH, CV_8UC1);
+	for (int i = 0; i < pixels.size(); i++)
+	{
+		Point& temp_pixel = get_pixel(i);
+		mask.at<uchar>(temp_pixel) = 1;
+	}
+	// 计算轮廓
+	vector<vector<Point>> temp_contour;
+	findContours(mask, temp_contour, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+	contour = temp_contour[0];
+}
+
 
 void ImgData::save_depth_image()
 {
@@ -285,6 +331,79 @@ void ImgData::reset()
 		get_superpixel(i).discovered = false;
 		get_superpixel(i).priority = DBL_MAX / 1024;
 	}
+}
+
+//产生天空
+void ImgData::show_sky()
+{
+	//初始化为false
+	vector<bool>discover(sp_num, false);
+	//存储sp的秩
+	queue<int>Queue;
+	for (int x = 0; x < WIDTH; x++)
+	{
+		//若其5上的那一行没有深度且未被遍历过，且没有深度
+		if (!discover[sp_label.at<int>(Point(x, 5))]
+			&& !get_superpixel(sp_label.at<int>(Point(x, 5))).have_depth())
+		{
+			discover[sp_label.at<int>(Point(x, 5))] = true;
+			Queue.push(sp_label.at<int>(Point(x, 5)));
+		}
+	}
+
+	while (!Queue.empty())
+	{
+		int sp_rank = Queue.front();//目前superpixel的编号
+		Queue.pop();
+		SuperPixel& sp = get_superpixel(sp_rank);
+		for (int i = 0; i < sp.contour.size(); i++)
+		{
+			int current_sp_rank;
+			//边缘点
+			Point ct = sp.contour[i];
+			//push进去的都是没深度点
+			for (int j = 0; j < 4; j++)  //邻域
+			{
+				if ((check_range(ct + Point(inX[j], inY[j])))
+					&& (!discover[current_sp_rank = sp_label.at<int>(ct + Point(inX[j], inY[j]))])  //没找过
+					&& (!get_superpixel(current_sp_rank).have_depth()) //没深度
+					&& (sky_color(current_sp_rank)))//是蓝色
+				{
+					discover[current_sp_rank] = true;
+					//将其标记为天空
+					/*get_superpixel(current_sp_rank).state = SKY;*/
+					Queue.push(current_sp_rank);
+				}
+			}
+		}
+		//将本SPnumber的深度置为无穷
+		for (int m = 0; m < sp.pixel_num; m++)
+		{
+			sp.pixels_depth[m] = WQT_DEPTH; //FLT_MAX//1117586350
+			depth_mat.at<int>(Point(sp.pixels[m].x, sp.pixels[m].y)) = WQT_DEPTH;
+		}
+		sp.create();
+	}
+	save_depth_image();
+	//output(image);
+}
+
+void ImgData::debug_depth(const cv::Point &pos)
+{
+	std::ofstream fout(PATH_DEBUG_DEPTH_OUTPUT);
+	SuperPixel SPxl = get_superpixel(sp_label.at<int>(pos));
+	for (int i = 0; i < SPxl.pixel_num; i++)
+		fout << SPxl.pixels_depth[i] << endl;
+	fout.close();
+}
+
+bool ImgData::sky_color(const SuperPixel & sp)
+{
+	cv::Vec3b v = origin_img.at<cv::Vec3b>(sp.center);
+	unsigned char B = v[0]; //B
+	unsigned char G = v[1]; //G
+	unsigned char R = v[2]; //R
+	return (((B - G) > unsigned char(25)) && ((B - R) > unsigned char(25)));
 }
 
 void ImgData::create_path()
@@ -365,7 +484,7 @@ void ImgData::calc_world_center()
 			//查看该点的深度信息
 			float depth = get_pixel_depth(Point(x, y));
 			//将有深度信息者加入temp中
-			if (depth > 1e-6)
+			if ((depth > 1e-6) && ((depth - WQT_DEPTH) > 1e-6) && ((WQT_DEPTH - depth) > 1e-6))
 			{
 				temp += cam.get_world_pos(Point(x, y), depth);
 				depth_num++;
@@ -387,9 +506,9 @@ float& ImgData::get_pixel_depth(Point& point)
 }
 
 //第二步改进函数（？）
-void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, int thread_rank)
+void shape_preserve_warp(ImgData& imgdata, Camera& novel_cam, Mat& output_img, int thread_rank)
 {
-	cout << "--thread--" << thread_rank << "--begin shape_preserve_wrap..." << endl;
+	cout << "--thread--" << thread_rank << "--begin shape_preserve_warp..." << endl;
 	clock_t start;
 	clock_t end;
 	start = clock();
@@ -417,7 +536,7 @@ void shape_preserve_wrap(ImgData& imgdata, Camera& novel_cam, Mat& output_img, i
 	clock_t t1 = 0;
 
 
-	// 逐个超像素进行wrap
+	// 逐个超像素进行warp
 	for (int i = 0; i < imgdata.sp_num; i++)
 	{
 		SuperPixel& superpixel = imgdata.get_superpixel(i);
@@ -633,7 +752,7 @@ void mix_pic(vector<ImgData>& imgdata_vec, Camera& now_cam, vector<int>& img_id,
 	for (int i = 0; i < img_id.size(); i++)
 	{
 		//对四个最近的照片分别wrap到同一个视点
-		threads[i] = thread(shape_preserve_wrap, ref(imgdata_vec[img_id[i]]), ref(now_cam), ref(wrap_img[i]), i);
+		threads[i] = thread(shape_preserve_warp, ref(imgdata_vec[img_id[i]]), ref(now_cam), ref(wrap_img[i]), i);
 	}
 	//等待所有线程执行完毕
 	for (int i = 0; i < threads.size(); i++)
@@ -700,7 +819,7 @@ void ImgData::depth_synthesis()
 	int depthless_num = 0;
 	//fout << "start Graphing!" << std::endl;
 	int index_Near_sp = 0;
-	for (int i = 0; i<sp_num; i++)
+	for (int i = 0; (i<sp_num); i++)
 	{
 		//sim_graph[i].resize(sp_num);
 		//此处必须用引用，因为要作为左值使用
@@ -736,8 +855,8 @@ void ImgData::depth_synthesis()
 			/*else
 				sim_graph[i][j] = DBL_MAX;*/
 
-			//建立该元素的最小的40个
-			if ((!data[i].have_depth())&&(data[j].have_depth()))
+			//建立该元素的最小的40个,且data[j]!=SKY
+			if ((!data[i].have_depth()) && (data[j].have_depth() && (data[j].depth_average < 100000)) /*&& (data[j].state != SKY)*/)
 			{
 				//fout << "depthless point neighbor found!" << std::endl;
 				sp_Pair pair(data[i], data[j]);
@@ -745,7 +864,7 @@ void ImgData::depth_synthesis()
 				if (current_nbr.size() > 40) current_nbr.pop();
 				//fout << " data[i].have_depth()= " << data[i].have_depth() << "  data[j].have_depth()= " << data[j].have_depth() << std::endl;
 				//把它压进去；
-				//弹出小顶堆的第一个；
+				//弹出小顶堆的第一个;
 			}
 		}
 		if (!data[i].have_depth())
@@ -762,16 +881,21 @@ void ImgData::depth_synthesis()
 	//fout << "depthless_num = " << depthless_num << std::endl;
 	//fout << "start DIJKSTRA ing!" << std::endl;
 	//此处应该进行Dijkstra
-	Near_sp.shrink_to_fit();
-	
-	for (int i = 0; i < Near_sp.size(); i++)
+	Near_sp.resize(index_Near_sp);
+
+	fout << Near_sp.size() << std::endl;
+	for (int i = 0; (i < (Near_sp.size())); i++)
 	{
+		std::cout << "DEEPLESS No: " << i << std::endl;
+		//fout << "DEEPLESS No: " << i << std::endl;
 		int count = 0;
 		//fout << "No " <<i<<" depthless point start dijkstra-ing "<< std::endl;
-		//current_nbr指40个相似点
+		//current_nbr指40个相似点,此处应该使用大顶堆
 		std::priority_queue<sp_Pair, std::vector<sp_Pair>, pair_cmp> &current_nbr = Near_sp[i];
+		//fout << "1" << " ";
 		//nbr_vec指40个相似点的秩
 		std::vector<int> nbr_vec;
+
 		nbr_vec.resize(40);
 		//必须转化为引用
 		//sp_Pair &current_pair = const_cast<sp_Pair &>(Near_sp[i].top());
@@ -779,12 +903,17 @@ void ImgData::depth_synthesis()
 		SuperPixel source = Near_sp[i].top().sp_src;
 		//将优先级队列中N[S]转存到vector中
 		int index = 0;
+		//fout << "2" << " ";
 		while (!Near_sp[i].empty())
 		{
+			//fout << "3" << " ";
 			sp_Pair p = Near_sp[i].top(); nbr_vec[index++] = get_sp_rank(p.sp_dst);
-			/*nbr_vec.push_back(get_sp_rank(p.sp_dst));*/ //fout << "nbr_vec [i]" << get_sp_rank(p.sp_dst) << std::endl;
+			/*nbr_vec.push_back(get_sp_rank(p.sp_dst));*/ 
+			//fout << "nbr_vec [i]" << get_sp_rank(p.sp_dst) << std::endl;
 			Near_sp[i].pop();
+			//fout << "4" << " ";
 		}
+		//fout << "5" << " ";
 		//fout << " queue to nbr_vec transformed " << std::endl;
 		//重置,初始化
 		reset();
@@ -818,7 +947,7 @@ void ImgData::depth_synthesis()
 					count++;
 				}
 			}
-			std::cout << " count =  " << count << std::endl;
+			//std::cout << " count =  " << count << std::endl;
 			//fout << " count =  " << count << std::endl;
 			//直至3个顶点被加入
 			if (count >= 3)break;
@@ -837,8 +966,11 @@ void ImgData::depth_synthesis()
 					//fout << " undiscovered neighbor found! " << std::endl;
 					//SuperPixel &nbr = get_superpixel(adjacency_list[get_sp_rank(current_sp)][j].sp_rank);
 					//fout << "nbr.priority=" << get_superpixel(nbr_rank).priority << " current_sp.priority = " << current_sp.priority << " edgeCost = " << adjacency_list[cur_rank][j].edgeCost << std::endl;
+					
 					//若邻居点的优先级					 大于 现结点的优先级	  +	两点之间的边权重
-					if ((get_superpixel(nbr_rank).priority > (current_sp.priority + adjacency_list[cur_rank][j].edgeCost)))
+					//且其超像素不为天空
+					if ((get_superpixel(nbr_rank).priority > (current_sp.priority + adjacency_list[cur_rank][j].edgeCost))
+						/*&& (get_superpixel(nbr_rank).state != SKY)*/)
 					{
 						//fout << " priority updated! " << std::endl;
 						get_superpixel(nbr_rank).priority = current_sp.priority + adjacency_list[cur_rank][j].edgeCost;
@@ -857,7 +989,10 @@ void ImgData::depth_synthesis()
 		{
 			//若该找到的点不为自己
 			if (get_superpixel(nbr_vec[j]).center == source.center)continue;
-			if ((shortest > get_superpixel(nbr_vec[j]).priority) && (get_superpixel(nbr_vec[j]).priority > 1e-6) && get_superpixel(nbr_vec[j]).have_depth())
+			if ((shortest > get_superpixel(nbr_vec[j]).priority) 
+				&& (get_superpixel(nbr_vec[j]).priority > 1e-6) 
+				&& get_superpixel(nbr_vec[j]).have_depth()
+				/*&& (get_superpixel(nbr_vec[j]).state != SKY)*/)
 			{
 				shortest = get_superpixel(nbr_vec[j]).priority;
 				shortest_rank = j;
@@ -870,8 +1005,10 @@ void ImgData::depth_synthesis()
 		for (int k = 0; k < source.pixel_num; k++)
 		{
 			get_pixel_depth(source.pixels[k]) = get_superpixel(nbr_vec[shortest_rank]).depth_average;
+			//depth_mat.at<int>(source.pixels[k]) = get_superpixel(nbr_vec[shortest_rank]).depth_average;
 			//fout << "pixel_num" << k << std::endl;
 		}
+		//get_superpixel(get_sp_rank(source)).create();
 	}
 	//fout << "UPDATING!!!!!!!!!" << endl;
 	//fout << "UPDATING!!!!!!!!!" << endl;

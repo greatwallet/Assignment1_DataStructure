@@ -31,6 +31,7 @@ struct adjacency_list_node
 		:sp_rank(sp_rank),edgeCost(edgeCost){};
 };
 
+enum sp_state { SKY, OTHERS };
 
 class sp_Pair;
 struct pair_cmp;
@@ -65,7 +66,7 @@ public:
 	//是否被发现
 	bool discovered;
 	SuperPixel() 
-		:priority(DBL_MAX),discovered(true)
+		:priority(DBL_MAX),discovered(true),state(OTHERS)
 	{
 		hist = cv::Mat();
 	}
@@ -76,8 +77,9 @@ public:
 
 	//获取某点的像素（输入该点的秩）
 	cv::Point& get_pixel(int i);
-	//
+	//创建超像素节点（产生hist）
 	void create(cv::Mat &origin_img);
+	void create();
 	//判定当前超像素点是否有深度信息
 	bool have_depth();
 	//neighbor or not
@@ -86,6 +88,7 @@ public:
 	//计算与邻居的折线距离
 	bool posneigh(cv::Point cen_neigh);
 	bool posneigh(const SuperPixel &neigh);
+	sp_state state;
 private:
 };
 
@@ -146,6 +149,17 @@ public:
 	//邻接表
 	std::vector<std::vector<adjacency_list_node>> adjacency_list;
 
+	//产生天空
+	void show_sky();
+
+	void debug_depth(const cv::Point &pos);
+
+	//某超像素点是否为天空色
+	bool sky_color(const SuperPixel &sp);
+	bool sky_color(int sp_rank)
+	{
+		return sky_color(get_superpixel(sp_rank));
+	}
 private:
 	//创建相似度路径（？）
 	void create_path();
@@ -189,7 +203,7 @@ struct pair_cmp
 		if (left.similarity < 0)left.similarity = left.calcChiSquare();
 		if (right.similarity < 0)right.similarity = right.calcChiSquare();
 
-		return left.similarity > right.similarity;
+		return left.similarity < right.similarity;	//大的优先
 	}
 
 };
@@ -203,4 +217,4 @@ struct sp_nbr_path
 
 
 
-#endif // !1
+#endif // !IMG_DATA_H

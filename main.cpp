@@ -121,27 +121,57 @@ int main()
 	bool with_file = true;	//false:	重新超像素分割
 	bool run_mve = false;	//true:		重新做mve重建
 	init(imgdata_vec, run_mve, with_file);
-	//此处应做depth synthesis
+
+	//std::ofstream fout("RGB information.txt");
+	//cv::Mat img(imgdata_vec[0].origin_img);
+	//for (int y = 0; y < HEIGHT; y++)
+	//{
+	//	for (int x = 0; x < WIDTH; x++)
+	//	{
+	//		cv::Vec3b v = img.at<cv::Vec3b>(cv::Point(x, y));
+	//		unsigned char B = v[0];
+	//		unsigned char G = v[1];
+	//		unsigned char R = v[2];
+	//		fout << " x = " << x << " y = " << y;
+	//		fout << " Red = " << int(R) << " Green = " << int(G) << " Blue = " << int(B) << std::endl;
+	//	}
+	//}
+	//fout.close();
+	/*imgdata_vec[0].show_sky();*/
 	imgdata_vec[0].depth_synthesis();
-	ofstream fout("adjacency list.txt");
-
-	for (int i = 0; i < imgdata_vec[0].adjacency_list.size(); i++)
+	/*std::ofstream fout("img count.txt");
+	for (int i = 0; i < imgdata_vec.size(); i++)
 	{
-		fout << "Rank " << i << " node:" << std::endl;
-		for (int j = 0; j < imgdata_vec[0].adjacency_list[i].size(); j++)
-		{
-			fout << imgdata_vec[0].adjacency_list[i][j].sp_rank << " " ;	
-		}
-		std::cout << endl;
-		for (int j = 0; j < imgdata_vec[0].adjacency_list[i].size(); j++)
-		{
-			fout << imgdata_vec[0].adjacency_list[i][j].edgeCost << " " ;
-		}
-		std::cout << endl;
+		fout << "IMG NO. = " << i << " ";
+		imgdata_vec[i].show_sky();
+		imgdata_vec[i].depth_synthesis();
+		if ((i + 1) % 8 == 0)fout << std::endl;
 	}
-	
+	fout.close();*/
 
-	fout.close();
+	//此处应做depth synthesis
+	{
+		
+		//ofstream fout("adjacency list.txt");
+
+		//for (int i = 0; i < imgdata_vec[0].adjacency_list.size(); i++)
+		//{
+		//	fout << "Rank " << i << " node:" << std::endl;
+		//	for (int j = 0; j < imgdata_vec[0].adjacency_list[i].size(); j++)
+		//	{
+		//		fout << imgdata_vec[0].adjacency_list[i][j].sp_rank << " ";
+		//	}
+		//	std::cout << endl;
+		//	for (int j = 0; j < imgdata_vec[0].adjacency_list[i].size(); j++)
+		//	{
+		//		fout << imgdata_vec[0].adjacency_list[i][j].edgeCost << " ";
+		//	}
+		//	std::cout << endl;
+		//}
+
+
+		//fout.close();
+	}
 	watch_result(imgdata_vec, 5);	//主要函数
 
 

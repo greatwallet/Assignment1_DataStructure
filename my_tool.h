@@ -139,5 +139,12 @@ bool RGB2Lab(unsigned char *rgb, double *lab/*, int iWidth, int iHeight*/)
 //	(*Z) *= Zn;
 //}
 
+float interpolate(SuperPixel &t, SuperPixel &a, SuperPixel &b, SuperPixel &c)
+{
+	float c1 = t.chiSquareDist(a), c2 = t.chiSquareDist(b), c3 = t.chiSquareDist(c);
+	float sum = a.depth_average / c1 / a.priority + b.depth_average / c2 / b.priority + c.depth_average / c3 / c.priority;
+	sum = sum / (1.0 / c1 / a.priority + 1.0 / c2 / b.priority + 1.0 / c3 / c.priority);
+	return sum;
+}
 
 #endif // !MY_TOOL_H
